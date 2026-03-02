@@ -10,7 +10,7 @@ from tkinter import ttk
 import urllib.request
 import urllib.error
 
-GITHUB_USER    = "xae_is_drawing"
+GITHUB_USER    = "xae-is-drawing"
 GITHUB_REPO    = "MindFlow"
 GITHUB_BRANCH  = "main"
 # URL de base pour les fichiers raw
@@ -163,10 +163,9 @@ class LauncherWindow(tk.Tk):
             self.set_status("❌ - main.py introuvable : vérifie ta connexion.")
             return
 
-        self.destroy()  # Fermer la fenêtre launcher
-
-        # Lance main.py avec le même Python que le launcher
-        subprocess.Popen([sys.executable, MAIN_PY], cwd=APP_DIR)
+        # quit() sort du mainloop proprement — le code après win.mainloop()
+        # dans __main__ se charge alors de lancer main.py
+        self.quit()
 
 
 # ---------------------------------------------------------------------------
@@ -175,3 +174,13 @@ class LauncherWindow(tk.Tk):
 if __name__ == "__main__":
     win = LauncherWindow()
     win.mainloop()
+    # Le mainloop du launcher est terminé — on peut maintenant créer
+    # une nouvelle fenêtre tkinter sans conflit
+    win.destroy()
+    if os.path.exists(MAIN_PY):
+        os.chdir(APP_DIR)
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("__main__", MAIN_PY)
+        module = importlib.util.module_from_spec(spec)
+        module.__file__ = MAIN_PY
+        spec.loader.exec_module(module)
