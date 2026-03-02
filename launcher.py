@@ -174,8 +174,7 @@ class LauncherWindow(tk.Tk):
 if __name__ == "__main__":
     win = LauncherWindow()
     win.mainloop()
-    # Le mainloop du launcher est terminé — on peut maintenant créer
-    # une nouvelle fenêtre tkinter sans conflit
+    # Le mainloop du launcher est terminé : on peut maintenant créer une nouvelle fenêtre tkinter sans conflit
     win.destroy()
     if os.path.exists(MAIN_PY):
         os.chdir(APP_DIR)
