@@ -204,16 +204,21 @@ if __name__ == "__main__":
         env = os.environ.copy()
         existing = env.get("PYTHONPATH", "")
         env["PYTHONPATH"] = LIB_DIR + (os.pathsep + existing if existing else "")
+        # Supprimer les variables Tcl/Tk injectées par PyInstaller qui pointent vers le dossier temporaire _MEI* et cassent tkinter dans main.py
+        for var in ("TCL_LIBRARY", "TK_LIBRARY", "TKPATH", "TCL_DATA"):
+            env.pop(var, None)
 
         log_path = os.path.join(BASE_DIR, "mindflow_error.log")
         try:
-            # CREATE_NO_WINDOW : pas de fenêtre console noire (Windows uniquement)
             CREATE_NO_WINDOW = 0x08000000
+            log_file = open(log_path, "w", encoding="utf-8")
             subprocess.Popen(
                 [python, MAIN_PY],
                 cwd=APP_DIR,
                 env=env,
                 creationflags=CREATE_NO_WINDOW,
+                stdout=log_file,
+                stderr=log_file,
             )
             # Popen est non-bloquant : le launcher se ferme immédiatement
         except Exception as e:
