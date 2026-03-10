@@ -11,15 +11,11 @@ from spotipy.oauth2 import SpotifyOAuth
 import json
 import re
 import threading
-import queue
 import hashlib
 from dataclasses import dataclass
 from tkhtmlview import HTMLLabel
-from pluralkit import Client
 
-# ---------------------------------------------------------------------------
-# Chemins — compatibles PyInstaller (frozen) et développement normal
-# ---------------------------------------------------------------------------
+# Chemins : compatibles PyInstaller (frozen) et développement normal
 if getattr(sys, "frozen", False):
     # Exécuté depuis le .exe PyInstaller
     BASE_DIR = os.path.dirname(sys.executable)
@@ -35,15 +31,11 @@ CONFIG_PATH = os.path.join(CACHE_DIR, "config.json")
 for d in (CACHE_DIR, NOTES_DIR, IMG_CACHE):
     os.makedirs(d, exist_ok=True)
 
-# ---------------------------------------------------------------------------
 # Dimensions
-# ---------------------------------------------------------------------------
 WIDTH  = 1920
 HEIGHT = 1080
 
-# ---------------------------------------------------------------------------
 # Configuration
-# ---------------------------------------------------------------------------
 DEFAULT_CONFIG = {
     "spotify_client_id":     "",
     "spotify_client_secret": "",
@@ -75,37 +67,30 @@ def save_config(cfg: dict):
 
 config = load_config()
 
-# ---------------------------------------------------------------------------
 # Cache disque pour les images téléchargées
-# ---------------------------------------------------------------------------
 def _cache_key(url: str) -> str:
     return hashlib.md5(url.encode()).hexdigest()
 
 
-def get_cached_image(url: str, size: tuple) -> Image.Image | None:
-    """Retourne un PIL Image (jamais un PhotoImage — doit être créé dans le thread principal)."""
+def get_cached_image(url: str, size: tuple) -> ImageTk.PhotoImage | None:
+    """Retourne l'image depuis le cache disque, ou la télécharge et la met en cache."""
     key  = _cache_key(url)
     path = os.path.join(IMG_CACHE, f"{key}_{size[0]}x{size[1]}.png")
     try:
         if os.path.exists(path):
-            return Image.open(path).copy()
-        r = requests.get(url, timeout=10)
-        r.raise_for_status()
-        img = Image.open(BytesIO(r.content)).resize(size, Image.Resampling.LANCZOS)
-        img.save(path, "PNG")
-        return img
+            img = Image.open(path)
+        else:
+            r = requests.get(url, timeout=10)
+            r.raise_for_status()
+            img = Image.open(BytesIO(r.content)).resize(size, Image.Resampling.LANCZOS)
+            img.save(path, "PNG")
+        return ImageTk.PhotoImage(img)
     except Exception as e:
         print(f"[ERREUR] Image {url} : {e}")
         return None
 
-
-# ---------------------------------------------------------------------------
 # Clients Spotify et PluralKit
-# ---------------------------------------------------------------------------
 sp = None
-pk = None
-
-
 def init_spotify():
     global sp
     cid    = config.get("spotify_client_id", "")
@@ -128,27 +113,32 @@ def init_spotify():
         sp = None
 
 
-def init_pluralkit():
-    global pk
-    token = config.get("pk_token", "")
+def get_pluralkit_fronters() -> str:
+    """Appelle l'API PluralKit v2 directement — fiable et sans dépendance async."""
+    token = config.get("pk_token", "").strip()
     if not token:
-        print("[INFO] Token PluralKit non configuré.")
-        pk = None
-        return
+        return ""
     try:
-        pk = Client(token, async_mode=False)
+        headers = {"Authorization": token}
+        r = requests.get("https://api.pluralkit.me/v2/systems/@me/fronters",
+                         headers=headers, timeout=8)
+        r.raise_for_status()
+        members = r.json().get("members", [])
+        noms = [m.get("display_name") or m.get("name", "?") for m in members]
+        return ", ".join(noms) if noms else "Aucun en front"
     except Exception as e:
-        print(f"[ERREUR] PluralKit : {e}")
-        pk = None
+        print(f"[ERREUR PluralKit] {e}")
+        return "Erreur PluralKit"
 
-
-init_spotify()
+def init_pluralkit():
+    token = config.get("pk_token", "").strip()
+    if token:
+        print(f"[INFO] PluralKit configuré (token: {token[:6]}...)")
+    else:
+        print("[INFO] Token PluralKit non configuré.")
 init_pluralkit()
 
-
-# ---------------------------------------------------------------------------
 # Récupération Spotify (appelée dans un thread secondaire)
-# ---------------------------------------------------------------------------
 def get_spotify_track() -> tuple[str, str]:
     """Retourne (texte_affiché, chemin_icône). Toujours sûr à appeler."""
     if sp is None:
@@ -174,9 +164,7 @@ def get_spotify_track() -> tuple[str, str]:
         return ("Spotify non connecté", "spotify_sleep.jpg")
 
 
-# ---------------------------------------------------------------------------
 # Dataclass Note
-# ---------------------------------------------------------------------------
 @dataclass
 class Note:
     window:        int
@@ -188,9 +176,7 @@ class Note:
     text:          str
 
 
-# ---------------------------------------------------------------------------
 # Fenêtre Paramètres
-# ---------------------------------------------------------------------------
 class SettingsWindow(Toplevel):
     def __init__(self, master, on_save_callback=None):
         super().__init__(master)
@@ -298,9 +284,7 @@ class SettingsWindow(Toplevel):
         self.destroy()
 
 
-# ---------------------------------------------------------------------------
 # Whiteboard
-# ---------------------------------------------------------------------------
 class Whiteboard(tk.Toplevel):
     def __init__(self, master=None):
         super().__init__(master)
@@ -318,7 +302,7 @@ class Whiteboard(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", lambda: [self.save_notes(), self.destroy()])
         self.load_notes()
 
-    # ------------------------------------------------------------------ Markdown
+    #  Markdown
     def _inline(self, text: str) -> str:
         text = text.replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
         text = text.replace("[ ]", "&#x2610;")
@@ -408,7 +392,7 @@ class Whiteboard(tk.Toplevel):
             print(f"[ERREUR Markdown] {e}")
             return text
 
-    # ------------------------------------------------------------------ Notes
+    # Notes
     def save_notes(self):
         data = []
         for n in self.notes:
@@ -544,10 +528,7 @@ class Whiteboard(tk.Toplevel):
             note.frame.config(bg=c)
             note.html_label.config(background=c)
 
-
-# ---------------------------------------------------------------------------
 # Application principale
-# ---------------------------------------------------------------------------
 class MindFlowApp(tk.Tk):
 
     emoji_backgrounds = {
@@ -589,12 +570,11 @@ class MindFlowApp(tk.Tk):
         self.canvas = tk.Canvas(self, width=WIDTH, height=HEIGHT, bg="black", highlightthickness=0)
         self.canvas.pack(fill="both", expand=True)
 
-        # Image de fond — chargée dans un thread, appliquée via queue polling
+        # Image de fond (thread secondaire pour ne pas bloquer le démarrage)
         self.bg_image    = None
         self.bg_image_id = self.canvas.create_image(0, 0, anchor="nw")
-        self._bg_queue   = queue.Queue()
-        threading.Thread(target=self._load_bg_async, args=(bg_url,), daemon=True).start()
-        self._poll_bg_queue()  # démarre le polling de la queue dans le thread principal
+        # Délayé via after() pour s'assurer que la mainloop est démarrée
+        self.after(50, lambda: threading.Thread(target=self._load_bg_async, args=(bg_url,), daemon=True).start())
 
         # Horloge
         self.time_text = self.canvas.create_text(
@@ -654,19 +634,20 @@ class MindFlowApp(tk.Tk):
         self.after(200, self._refresh_fronteurs)
 
         # 4. Bouton tableau blanc  (coin haut droit)
-        # Utilise place() ancré au coin de la fenêtre — indépendant de la taille réelle du canvas
         icon_path = os.path.join(ASSETS_DIR, "notes", "note_icon.jpg")
         if os.path.exists(icon_path):
             note_icon = Image.open(icon_path).resize((32, 32), Image.Resampling.LANCZOS)
             self.note_imgtk = ImageTk.PhotoImage(note_icon)
-            self.note_btn = tk.Button(self, image=self.note_imgtk, command=self.open_whiteboard,
-                                       borderwidth=0, bg="black", cursor="hand2")
+            note_btn = tk.Button(self, image=self.note_imgtk, command=self.open_whiteboard,
+                                  borderwidth=0, bg="black", cursor="hand2")
+            self.canvas.create_window(WIDTH - 20, 20, window=note_btn, anchor="ne")
         else:
-            self.note_btn = tk.Button(self, text="📋", font=("Arial", 14), relief="raised",
-                                       bg="black", fg="white", cursor="hand2",
-                                       width=BTN_W, height=BTN_H,
-                                       command=self.open_whiteboard)
-        self.note_btn.place(relx=1.0, rely=0.0, x=-10, y=10, anchor="ne")
+            # Fallback texte si l'icône est absente (même taille que les autres boutons)
+            note_btn = tk.Button(self, text="📋", font=("Arial", 14), relief="raised",
+                                  bg="black", fg="white", cursor="hand2",
+                                  width=BTN_W, height=BTN_H,
+                                  command=self.open_whiteboard)
+            self.canvas.create_window(WIDTH - 20, 20, window=note_btn, anchor="ne")
 
         # ── Musique — bas gauche (7 icône + 8 titre) ───────────────────────
         MUSIC_Y        = HEIGHT - 60   # ligne de base en bas
@@ -684,34 +665,22 @@ class MindFlowApp(tk.Tk):
             fill="#000000", stipple="gray50", outline="")
         # S'assurer que le bg est derrière l'icône et le texte
         self.canvas.tag_lower(self.spotify_bg, self.spotify_icon)
-        self._schedule_spotify_refresh()
+        self.after(100, self._schedule_spotify_refresh)
 
         # GIF idle
         self._load_idle_gif(os.path.join(ASSETS_DIR, "arbre", "arbre_idle.gif"))
         self._animate_idle_gif()
 
-    # ------------------------------------------------------------------ Fond
+    # Fond
     def _load_bg_async(self, url: str):
-        """Thread secondaire : télécharge le PIL Image et le dépose dans la queue."""
-        pil_img = get_cached_image(url, (WIDTH, HEIGHT))
-        if pil_img:
-            self._bg_queue.put(pil_img)
+        """Télécharge/cache l'image de fond dans un thread, puis met à jour le canvas."""
+        img = get_cached_image(url, (WIDTH, HEIGHT))
+        if img:
+            # Les mises à jour tkinter DOIVENT se faire dans le thread principal
+            self.after(0, lambda i=img: self._apply_bg(i))
 
-    def _poll_bg_queue(self):
-        """Thread principal : consomme la queue toutes les 100 ms et applique l'image."""
-        try:
-            while True:
-                pil_img = self._bg_queue.get_nowait()
-                # PhotoImage créé ici, dans le thread principal — safe
-                self.bg_image = ImageTk.PhotoImage(pil_img)
-                self.canvas.itemconfig(self.bg_image_id, image=self.bg_image)
-        except queue.Empty:
-            pass
-        self.after(100, self._poll_bg_queue)
-
-    def _apply_bg(self, pil_img: Image.Image):
-        """Applique une image PIL comme fond (appelé depuis le thread principal uniquement)."""
-        self.bg_image = ImageTk.PhotoImage(pil_img)
+    def _apply_bg(self, img: ImageTk.PhotoImage):
+        self.bg_image = img
         self.canvas.itemconfig(self.bg_image_id, image=self.bg_image)
 
     def change_background(self, emoji: str):
@@ -719,20 +688,19 @@ class MindFlowApp(tk.Tk):
         if not url:
             return
         self.bouton_changer_fond.configure(text=emoji)
-        def _fetch():
-            pil_img = get_cached_image(url, (WIDTH, HEIGHT))
-            if pil_img:
-                self._bg_queue.put(pil_img)
-        threading.Thread(target=_fetch, daemon=True).start()
+        threading.Thread(
+            target=lambda: self.after(0, lambda i=get_cached_image(url, (WIDTH, HEIGHT)): self._apply_bg(i) if i else None),
+            daemon=True,
+        ).start()
 
-    # ------------------------------------------------------------------ Horloge
+    # Horloge
     def update_clock(self):
         now = datetime.datetime.now()
         self.canvas.itemconfigure(self.time_text, text=now.strftime("%H:%M:%S"))
         self.canvas.itemconfigure(self.date_text, text=now.strftime("%d/%m/%Y"))
         self.after(1000, self.update_clock)
 
-    # ------------------------------------------------------------------ Spotify
+    # Spotify
     def _schedule_spotify_refresh(self):
         """Lance la récupération Spotify dans un thread, planifie le prochain cycle."""
         threading.Thread(target=self._fetch_spotify, daemon=True).start()
@@ -768,33 +736,18 @@ class MindFlowApp(tk.Tk):
         # Planifier le prochain refresh
         self.after(config.get("spotify_refresh_ms", 10000), self._schedule_spotify_refresh)
 
-    # ------------------------------------------------------------------ Fronteurs
+    # Fronteurs
     def _refresh_fronteurs(self):
         """Lance la récupération PluralKit dans un thread."""
         threading.Thread(target=self._fetch_fronteurs, daemon=True).start()
 
     def _fetch_fronteurs(self):
-        if pk is None:
-            self.after(0, lambda: self.canvas.itemconfigure(
-                self.fronters_label, text="PluralKit non configuré"))
-            self.after(config.get("fronters_refresh_ms", 60000), self._refresh_fronteurs)
-            return
-        try:
-            fronters = pk.get_fronters()
-            if isinstance(fronters, list):
-                noms = [m.name for m in fronters]
-            elif hasattr(fronters, "members"):
-                noms = [m.name for m in fronters.members]
-            else:
-                noms = []
-            texte = ", ".join(noms) if noms else "Aucun en front"
-        except Exception as e:
-            print(f"[ERREUR PluralKit] {e}")
-            texte = "Erreur PluralKit"
-        self.after(0, lambda t=texte: self.canvas.itemconfigure(self.fronters_label, text=t))
+        texte = get_pluralkit_fronters()
+        if texte:
+            self.after(0, lambda t=texte: self.canvas.itemconfigure(self.fronters_label, text=t))
         self.after(config.get("fronters_refresh_ms", 60000), self._refresh_fronteurs)
 
-    # ------------------------------------------------------------------ Timer
+    # Timer
     def format_time(self, s: int) -> str:
         m, s = divmod(s, 60)
         return f"{m:02}:{s:02}"
@@ -875,7 +828,7 @@ class MindFlowApp(tk.Tk):
                     self.canvas.delete(getattr(self, attr))
             self.reset_button_id = self.canvas.create_window(self.TIMER_CX, 600, window=self.reset_button)
 
-    # ------------------------------------------------------------------ Arbre / GIF
+    # Arbre / GIF
     def _get_season(self) -> str:
         m = datetime.datetime.now().month
         return ("hiver" if m in [12,1,2] else
@@ -907,16 +860,19 @@ class MindFlowApp(tk.Tk):
             self.canvas.itemconfigure(self.arbre_image_id, image=self.idle_gif_frames[self.current_frame])
         self.after(100, self._animate_idle_gif)
 
-    # ------------------------------------------------------------------ Divers
+    # Divers
     def open_settings(self):
-        SettingsWindow(self)
+        SettingsWindow(self, on_save_callback=self._on_settings_saved)
+
+    def _on_settings_saved(self):
+        """Appelé après la sauvegarde des paramètres : relance les services."""
+        self.after(0, self._schedule_spotify_refresh)
+        self.after(0, self._refresh_fronteurs)
 
     def open_whiteboard(self):
         Whiteboard(self)
 
-# ---------------------------------------------------------------------------
 # Lancement
-# ---------------------------------------------------------------------------
 if __name__ == "__main__":
     emoji_par_defaut = "🍂🌈"
     bg_url = MindFlowApp.emoji_backgrounds.get(

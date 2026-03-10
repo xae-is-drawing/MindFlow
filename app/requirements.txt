@@ -1,5 +1,4 @@
 Pillow
 requests
 spotipy
-pluralkit
 tkhtmlview

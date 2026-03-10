@@ -10,7 +10,7 @@ Une petite application Python pour s'organiser et essayer de rendre la vie plus 
 2. Placer l'exécutable dans un dossier (permet de garder une organisation claire de ses fichiers) (ex: `MindFlowApp/`)
 3. Double-cliquer sur `MindFlow.exe`
 
-Au premier lancement, l'application télécharge automatiquement ses fichiers et installe ses dépendances. Cela peut prendre 30 à 60 secondes selon la connexion.
+Au premier lancement, l'application télécharge automatiquement ses fichiers et installe ses dépendances. Cela peut prendre 30 à 60 secondes selon la connexion. C'est pour cela que vous voyez une fenêtre noire apparaître : ne pas la fermer, simplement attendre qu'elle se ferme toute seule.
 
 ---
 
@@ -31,10 +31,8 @@ Spotify
 - Récupèrer le `Client ID` et le `Client Secret`
 - Renseigner l'URI de redirection : `http://127.0.0.1:8888/callback/`
 
-Deezer (à venir)
-
 PluralKit
-- Récupèrer ton token PluralKit avec la commande `pk;token` sur Discord
+- Récupèrer le token PluralKit avec la commande `pk;token` sur Discord
 - Le coller dans le champ `Token` de la fenêtre paramètres
 
 ---
@@ -43,7 +41,7 @@ PluralKit
 
 *Cette section va est encore en cours de rédaction.*
 
-Pour ajouter un post-it : double-cliquez.
+Pour ajouter un post-it : double-cliquer.
 
 ---
 
@@ -82,7 +80,7 @@ MindFlowApp/
     │   └── img_cache/      -> fonds d'écran mis en cache
     └── lib/                -> dépendances Python installées localement
 ```
-> /!\ Ne supprimer aucun fichier ou dossier : ils sont tous nécessaires au bon fonctionnement de l'application.
+> /!\ Ne supprimer aucun fichier ou dossier : ils sont tous nécessaires au bon fonctionnement de l'application   
 > (Il est cependant possible de déplacer tout le dossier n'importe où sur l'ordinateur.)
 
 ---
@@ -101,3 +99,33 @@ MindFlow est codé en Python et s'appuie sur les librairies suivantes :
 | `requests` | Téléchargement des fonds d'écran |
 
 Le système de mise à jour repose sur un launcher (`launcher.py`) compilé en `.exe` via PyInstaller. Le code principal (`main.py`) est téléchargé depuis GitHub à chaque lancement si une nouvelle version est disponible (ce qui permet de mettre à jour l'application sans redistribuer un nouvel exécutable).
+
+---
+
+## Liste des choses prévues
+
+### Fonctionnalités
+
+Pouvoir intégrer Deezer pour la musique (sil n'y a pas besoin d'un compte premium)
+
+Supprimer l'intégration à Spotify, vu qu'il faut un compte premium, et tout le blablabla
+
+Pouvoir intégrer des images dans les posts-it
+
+Pouvoir avoir plusieurs de tableaux pour les post-its
+
+Pouvoir avoir un son quand le minuteur se finit
+
+Pouvoir faire des tabulation avec \t
+
+### Design
+
+Mettre un fond (joli, dessiné ?) au niveau de l'heure et de la date
+
+Rentre les boutons + et - du timer pluS jolis
+
+Enlever les gros trous entre le texte et les listes dans les post-it (vérifier comment c'est le cas avec la version actuelle)
+
+Le retour à la liste des listes & co au niveau du point (vérifier comment c'est le cas avec la version actuelle)
+
+[] markdown (vérifier comment c'est le cas avec la version actuelle)
