@@ -583,8 +583,8 @@ class MindFlowApp(tk.Tk):
             WIDTH/2.5, HEIGHT/3.5+60, text="", font=("Helvetica", 20), fill="white")
         self.update_clock()
 
-        # ── Arbre / timer — centré sur le tiers droit ──────────────────────
-        self.TIMER_CX = int(WIDTH * 2 / 3)   # centre horizontal du bloc timer/arbre
+        # Arbre / timer : centré sur le tiers droit
+        self.TIMER_CX = int(WIDTH * 2 / 3) # centre horizontal du bloc timer/arbre
 
         self.season       = self._get_season()
         self.arbre_images = self._load_arbre_images(self.season)
@@ -603,22 +603,20 @@ class MindFlowApp(tk.Tk):
 
         self.start_button_id = self.canvas.create_window(self.TIMER_CX,      HEIGHT // 3 + 230, window=self.start_button)
 
-        # 9 (−) et 10 (+) : de part et d'autre du texte du timer
+        # Boutons + et - du timer de part et d'autre du minuteur
         self.minus_button_id = self.canvas.create_window(self.TIMER_CX - 60, HEIGHT // 3 + 190, window=self.minus_button)
         self.plus_button_id  = self.canvas.create_window(self.TIMER_CX + 60, HEIGHT // 3 + 190, window=self.plus_button)
 
-        # ── Barre du haut (gauche → droite) ────────────────────────────────
-        # Taille commune pour les boutons settings et fond d'écran
-        BTN_W, BTN_H = 3, 1   # width/height en unités tkinter (caractères)
+        BTN_W, BTN_H = 3, 1   # Taille commune pour les boutons, en unités tkinter (caractères)
 
-        # 1. Bouton Paramètres ⚙  (tout à gauche)
+        # Bouton paramètres (tout à gauche)
         settings_btn = tk.Button(self, text="⚙", font=("Arial", 14), relief="raised",
                                   bg="black", fg="white", cursor="hand2",
                                   width=BTN_W, height=BTN_H,
                                   command=self.open_settings)
         self.canvas.create_window(20, 20, window=settings_btn, anchor="nw")
 
-        # 2. Bouton changer le fond 🍂  (juste après settings, même taille)
+        # Bouton changer le fond (à droite du bouton paramètres)
         self.bouton_changer_fond = tk.Menubutton(self, text="🍂", font=("Arial", 14),
                                                   relief="raised", bg="black", fg="white",
                                                   width=BTN_W, height=BTN_H)
@@ -628,28 +626,26 @@ class MindFlowApp(tk.Tk):
             menu_fond.add_command(label=emoji, command=lambda e=emoji: self.change_background(e))
         self.canvas.create_window(80, 20, window=self.bouton_changer_fond, anchor="nw")
 
-        # 3. Label fronteurs PluralKit  (à droite du bouton fond)
+        # Fronteurs PluralKit  (à droite du bouton fond)
         self.fronters_label = self.canvas.create_text(
             150, 33, text="", font=("Helvetica", 12), fill="white", anchor="w")
         self.after(200, self._refresh_fronteurs)
 
-        # 4. Bouton tableau blanc  (coin haut droit)
+        # Bouton tableau blanc (coin haut droit)
         icon_path = os.path.join(ASSETS_DIR, "notes", "note_icon.jpg")
         if os.path.exists(icon_path):
             note_icon = Image.open(icon_path).resize((32, 32), Image.Resampling.LANCZOS)
             self.note_imgtk = ImageTk.PhotoImage(note_icon)
-            note_btn = tk.Button(self, image=self.note_imgtk, command=self.open_whiteboard,
+            self.note_btn = tk.Button(self, image=self.note_imgtk, command=self.open_whiteboard,
                                   borderwidth=0, bg="black", cursor="hand2")
-            self.canvas.create_window(WIDTH - 20, 20, window=note_btn, anchor="ne")
         else:
-            # Fallback texte si l'icône est absente (même taille que les autres boutons)
-            note_btn = tk.Button(self, text="📋", font=("Arial", 14), relief="raised",
+            self.note_btn = tk.Button(self, text="📋", font=("Arial", 14), relief="raised",
                                   bg="black", fg="white", cursor="hand2",
                                   width=BTN_W, height=BTN_H,
                                   command=self.open_whiteboard)
-            self.canvas.create_window(WIDTH - 20, 20, window=note_btn, anchor="ne")
+        self.note_btn.place(relx=1.0, rely=0.0, x=-10, y=10, anchor="ne") # place() pour garantir l'affichage au premier plan (à la place de create_window)
 
-        # ── Musique — bas gauche (7 icône + 8 titre) ───────────────────────
+        # Musique : en bas à gauche (7 icône + 8 titre)
         MUSIC_Y        = HEIGHT - 60   # ligne de base en bas
         ICON_X         = 20            # bord gauche
         ICON_SIZE      = 36

@@ -102,30 +102,21 @@ Le système de mise à jour repose sur un launcher (`launcher.py`) compilé en `
 
 ---
 
-## Liste des choses prévues
+## Changements à venir
 
 ### Fonctionnalités
 
-Pouvoir intégrer Deezer pour la musique (sil n'y a pas besoin d'un compte premium)
-
-Supprimer l'intégration à Spotify, vu qu'il faut un compte premium, et tout le blablabla
-
-Pouvoir intégrer des images dans les posts-it
-
-Pouvoir avoir plusieurs de tableaux pour les post-its
-
-Pouvoir avoir un son quand le minuteur se finit
-
+L'intégration à Spotify sera supprimée  
+L'intégration à Deezer ne se fera au final peut-être pas  
+Pouvoir intégrer des images dans les posts-it  
+Pouvoir avoir plusieurs de tableaux pour les post-its  
+Pouvoir avoir un son lorsque le minuteur se finit  
 Pouvoir faire des tabulation avec \t
 
 ### Design
 
-Mettre un fond (joli, dessiné ?) au niveau de l'heure et de la date
-
-Rentre les boutons + et - du timer pluS jolis
-
-Enlever les gros trous entre le texte et les listes dans les post-it (vérifier comment c'est le cas avec la version actuelle)
-
-Le retour à la liste des listes & co au niveau du point (vérifier comment c'est le cas avec la version actuelle)
-
+Mettre un fond (joli, dessiné ?) au niveau de l'heure et de la date  
+Rentre les boutons + et - du timer pluS jolis  
+Enlever les gros trous entre le texte et les listes dans les post-it (vérifier comment c'est le cas avec la version actuelle)  
+Le retour à la liste des listes & co au niveau du point (vérifier comment c'est le cas avec la version actuelle)  
 [] markdown (vérifier comment c'est le cas avec la version actuelle)
