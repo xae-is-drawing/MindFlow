@@ -6,8 +6,6 @@ from PIL import Image, ImageTk, ImageSequence
 import datetime
 import requests
 from io import BytesIO
-import spotipy
-from spotipy.oauth2 import SpotifyOAuth
 import json
 import re
 import threading
@@ -37,11 +35,7 @@ HEIGHT = 1080
 
 # Configuration
 DEFAULT_CONFIG = {
-    "spotify_client_id":     "",
-    "spotify_client_secret": "",
-    "spotify_redirect_uri":  "http://127.0.0.1:8888/callback/",
     "pk_token":              "",
-    "spotify_refresh_ms":    10000,
     "fronters_refresh_ms":   60000,
     "note_colors":           ["#ffff88", "#aaffaa", "#aaddff", "#ffccaa", "#ffaacc"],
 }
@@ -89,29 +83,7 @@ def get_cached_image(url: str, size: tuple) -> ImageTk.PhotoImage | None:
         print(f"[ERREUR] Image {url} : {e}")
         return None
 
-# Clients Spotify et PluralKit
-sp = None
-def init_spotify():
-    global sp
-    cid    = config.get("spotify_client_id", "")
-    secret = config.get("spotify_client_secret", "")
-    uri    = config.get("spotify_redirect_uri", "http://127.0.0.1:8888/callback/")
-    if not cid or not secret:
-        print("[INFO] Clés Spotify non configurées.")
-        sp = None
-        return
-    try:
-        auth = SpotifyOAuth(
-            client_id=cid, client_secret=secret, redirect_uri=uri,
-            scope="user-read-playback-state user-library-read",
-            cache_path=os.path.join(CACHE_DIR, ".spotify_cache"),
-        )
-        sp = spotipy.Spotify(auth_manager=auth)
-        print(f"[INFO] Spotify : {sp.current_user()['display_name']}")
-    except Exception as e:
-        print(f"[ERREUR] Spotify : {e}")
-        sp = None
-
+# Clients PluralKit
 
 def get_pluralkit_fronters() -> str:
     """Appelle l'API PluralKit v2 directement — fiable et sans dépendance async."""
@@ -138,31 +110,6 @@ def init_pluralkit():
         print("[INFO] Token PluralKit non configuré.")
 init_pluralkit()
 
-# Récupération Spotify (appelée dans un thread secondaire)
-def get_spotify_track() -> tuple[str, str]:
-    """Retourne (texte_affiché, chemin_icône). Toujours sûr à appeler."""
-    if sp is None:
-        return ("Spotify non configuré", "spotify_sleep.jpg")
-    try:
-        current = sp.current_playback()
-        if not current:
-            return ("Aucune lecture en cours", "spotify_sleep.jpg")
-        if current.get("currently_playing_type") == "ad":
-            return ("Pub", "spotify_ad.jpg")
-        if current["is_playing"]:
-            track   = current["item"]["name"]
-            artists = ", ".join(a["name"] for a in current["item"]["artists"])
-            liked   = sp.current_user_saved_tracks_contains([current["item"]["id"]])[0]
-            icon    = "spotify_heart.jpg" if liked else "spotify.jpg"
-            return (f"{track} - {artists}", icon)
-        return ("En pause", "spotify_sleep.jpg")
-    except spotipy.exceptions.SpotifyException as e:
-        print(f"[ERREUR SPOTIFY] {e}")
-        return ("Erreur Spotify", "spotify_sleep.jpg")
-    except Exception as e:
-        print(f"[ERREUR] {e}")
-        return ("Spotify non connecté", "spotify_sleep.jpg")
-
 
 # Dataclass Note
 @dataclass
@@ -188,31 +135,6 @@ class SettingsWindow(Toplevel):
 
     def _build_ui(self):
         pad = {"padx": 12, "pady": 5}
-
-        # Spotify
-        s1 = tk.LabelFrame(self, text="🎵 Spotify", font=("Helvetica", 11, "bold"), padx=8, pady=6)
-        s1.pack(fill="x", padx=12, pady=(12, 4))
-        for row, (label, attr, kw) in enumerate([
-            ("Client ID :",     "spotify_id_var",      {}),
-            ("Client Secret :", "spotify_secret_var",  {"show": "*"}),
-            ("Redirect URI :",  "spotify_uri_var",     {}),
-        ]):
-            tk.Label(s1, text=label).grid(row=row, column=0, sticky="w")
-            key = label.lower().replace(" ", "_").replace(":", "").strip()
-            cfg_key = {"client_id_": "spotify_client_id",
-                       "client_secret_": "spotify_client_secret",
-                       "redirect_uri_": "spotify_redirect_uri"}.get(key, key)
-            var = tk.StringVar(value=config.get(
-                {"spotify_id_var": "spotify_client_id",
-                 "spotify_secret_var": "spotify_client_secret",
-                 "spotify_uri_var": "spotify_redirect_uri"}[attr], ""))
-            setattr(self, attr, var)
-            tk.Entry(s1, textvariable=var, width=42, **kw).grid(row=row, column=1, **pad)
-
-        tk.Label(s1, text="Refresh (ms) :").grid(row=3, column=0, sticky="w")
-        self.spotify_refresh_var = tk.IntVar(value=config.get("spotify_refresh_ms", 10000))
-        tk.Spinbox(s1, from_=2000, to=60000, increment=1000,
-                   textvariable=self.spotify_refresh_var, width=10).grid(row=3, column=1, sticky="w", **pad)
 
         # PluralKit
         s2 = tk.LabelFrame(self, text="🌸 PluralKit", font=("Helvetica", 11, "bold"), padx=8, pady=6)
@@ -269,15 +191,10 @@ class SettingsWindow(Toplevel):
             self._refresh_color_list()
 
     def _save(self):
-        config["spotify_client_id"]     = self.spotify_id_var.get().strip()
-        config["spotify_client_secret"] = self.spotify_secret_var.get().strip()
-        config["spotify_redirect_uri"]  = self.spotify_uri_var.get().strip()
-        config["spotify_refresh_ms"]    = self.spotify_refresh_var.get()
         config["pk_token"]              = self.pk_token_var.get().strip()
         config["fronters_refresh_ms"]   = self.fronters_refresh_var.get()
         config["note_colors"]           = self.color_vars
         save_config(config)
-        init_spotify()
         init_pluralkit()
         if self.on_save_callback:
             self.on_save_callback()
@@ -558,9 +475,6 @@ class MindFlowApp(tk.Tk):
         self.idle_gif_frames     = []
         self.current_frame       = 0
 
-        # Cache Spotify
-        self._last_spotify_icon: str | None = None
-
         # GIF actif/pausé selon visibilité fenêtre
         self._window_visible = True
         self.bind("<Map>",   lambda e: setattr(self, "_window_visible", True))
@@ -645,24 +559,6 @@ class MindFlowApp(tk.Tk):
                                   command=self.open_whiteboard)
         self.note_btn.place(relx=1.0, rely=0.0, x=-10, y=10, anchor="ne") # place() pour garantir l'affichage au premier plan (à la place de create_window)
 
-        # Musique : en bas à gauche (7 icône + 8 titre)
-        MUSIC_Y        = HEIGHT - 60   # ligne de base en bas
-        ICON_X         = 20            # bord gauche
-        ICON_SIZE      = 36
-
-        self.spotify_icon  = self.canvas.create_image(ICON_X, MUSIC_Y, anchor="w", image=None)
-        self.spotify_label = self.canvas.create_text(
-            ICON_X + ICON_SIZE + 10, MUSIC_Y,
-            text="", font=("Helvetica", 12), fill="white", anchor="w")
-        # Fond semi-transparent derrière le bloc musique
-        self.spotify_bg = self.canvas.create_rectangle(
-            ICON_X - 4, MUSIC_Y - ICON_SIZE//2 - 4,
-            ICON_X + 600, MUSIC_Y + ICON_SIZE//2 + 4,
-            fill="#000000", stipple="gray50", outline="")
-        # S'assurer que le bg est derrière l'icône et le texte
-        self.canvas.tag_lower(self.spotify_bg, self.spotify_icon)
-        self.after(100, self._schedule_spotify_refresh)
-
         # GIF idle
         self._load_idle_gif(os.path.join(ASSETS_DIR, "arbre", "arbre_idle.gif"))
         self._animate_idle_gif()
@@ -695,42 +591,6 @@ class MindFlowApp(tk.Tk):
         self.canvas.itemconfigure(self.time_text, text=now.strftime("%H:%M:%S"))
         self.canvas.itemconfigure(self.date_text, text=now.strftime("%d/%m/%Y"))
         self.after(1000, self.update_clock)
-
-    # Spotify
-    def _schedule_spotify_refresh(self):
-        """Lance la récupération Spotify dans un thread, planifie le prochain cycle."""
-        threading.Thread(target=self._fetch_spotify, daemon=True).start()
-
-    def _fetch_spotify(self):
-        """Appelé dans un thread secondaire : récupère les infos et schedule l'update UI."""
-        track_info, icon_path = get_spotify_track()
-        self.after(0, lambda: self._apply_spotify(track_info, icon_path))
-
-    def _apply_spotify(self, track_info: str, icon_path: str):
-        """Appelé dans le thread principal : met à jour le canvas."""
-        self.canvas.itemconfigure(self.spotify_label, text=track_info)
-
-        # Redimensionne le fond selon la longueur du texte
-        bbox = self.canvas.bbox(self.spotify_label)
-        if bbox:
-            x1, y1, x2, y2 = bbox
-            icon_bbox = self.canvas.bbox(self.spotify_icon)
-            left = (icon_bbox[0] - 4) if icon_bbox else x1 - 44
-            self.canvas.coords(self.spotify_bg, left, y1 - 6, x2 + 8, y2 + 6)
-
-        if icon_path != self._last_spotify_icon:
-            self._last_spotify_icon = icon_path
-            full_path = os.path.join(ASSETS_DIR, icon_path)
-            if os.path.exists(full_path):
-                try:
-                    icon_img = Image.open(full_path).resize((32, 32), Image.Resampling.LANCZOS)
-                    self.spotify_icon_imgtk = ImageTk.PhotoImage(icon_img)
-                    self.canvas.itemconfigure(self.spotify_icon, image=self.spotify_icon_imgtk)
-                except Exception as e:
-                    print(f"[ERREUR] Icône Spotify : {e}")
-
-        # Planifier le prochain refresh
-        self.after(config.get("spotify_refresh_ms", 10000), self._schedule_spotify_refresh)
 
     # Fronteurs
     def _refresh_fronteurs(self):
@@ -862,7 +722,6 @@ class MindFlowApp(tk.Tk):
 
     def _on_settings_saved(self):
         """Appelé après la sauvegarde des paramètres : relance les services."""
-        self.after(0, self._schedule_spotify_refresh)
         self.after(0, self._refresh_fronteurs)
 
     def open_whiteboard(self):
