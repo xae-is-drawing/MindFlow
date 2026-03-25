@@ -46,7 +46,6 @@ DEFAULT_CONFIG = {
     "fronters_refresh_ms": 60000,
     "note_colors": ["#ffff88", "#aaffaa", "#aaddff", "#ffccaa", "#ffaacc"],
     "backgrounds": DEFAULT_BACKGROUNDS,
-    "default_bg": "🍂🌈",
     "current_bg": "🍂🌈",
 }
 
@@ -173,8 +172,10 @@ class SettingsWindow(Toplevel):
         set_fonds.pack(fill="x", padx=12, pady=4)
 
         self.bg_vars = [dict(b) for b in config.get("backgrounds", DEFAULT_BACKGROUNDS)]
-        self._default_bg_var  = tk.StringVar(value=config.get("default_bg", ""))
-        self._current_bg_var  = tk.StringVar(value=config.get("current_bg", ""))
+        _last_bg = config.get("last_bg", "")
+        if not _last_bg and self.bg_vars:
+            _last_bg = self.bg_vars[0]["name"]  # premier fond par défaut
+        self._current_bg_var = tk.StringVar(value=_last_bg)
 
         self.bg_list_frame = tk.Frame(set_fonds)
         self.bg_list_frame.pack(fill="x")
@@ -219,16 +220,13 @@ class SettingsWindow(Toplevel):
             w.destroy()
         tk.Label(self.bg_list_frame, text="Nom", width=12, anchor="w").grid(row=0, column=0, padx=4)
         tk.Label(self.bg_list_frame, text="URL", width=30, anchor="w").grid(row=0, column=1, padx=4)
-        tk.Label(self.bg_list_frame, text="Défaut").grid(row=0, column=2, padx=2)
-        tk.Label(self.bg_list_frame, text="Actuel").grid(row=0, column=3, padx=2)
+        tk.Label(self.bg_list_frame, text="Actuel").grid(row=0, column=2, padx=2)
         for i, bg in enumerate(self.bg_vars):
             tk.Label(self.bg_list_frame, text=bg["name"], width=12, anchor="w").grid(row=i+1, column=0, padx=4)
             tk.Label(self.bg_list_frame, text=bg["url"][:35] + "…" if len(bg["url"]) > 35 else bg["url"],
                      width=30, anchor="w").grid(row=i+1, column=1, padx=4)
-            tk.Radiobutton(self.bg_list_frame, variable=self._default_bg_var,
-                           value=bg["name"]).grid(row=i+1, column=2)
             tk.Radiobutton(self.bg_list_frame, variable=self._current_bg_var,
-                           value=bg["name"]).grid(row=i+1, column=3)
+                           value=bg["name"]).grid(row=i+1, column=2)
             tk.Button(self.bg_list_frame, text="✏️", width=3,
                       command=lambda idx=i: self._edit_bg(idx)).grid(row=i+1, column=4, padx=2)
             tk.Button(self.bg_list_frame, text="🗑️", width=3,
@@ -279,8 +277,7 @@ class SettingsWindow(Toplevel):
         config["fronters_refresh_ms"] = self.fronters_refresh_var.get()
         config["note_colors"] = self.color_vars
         config["backgrounds"] = self.bg_vars
-        config["default_bg"] = self._default_bg_var.get()
-        config["current_bg"] = self._current_bg_var.get()
+        config["last_bg"] = self._current_bg_var.get()
         save_config(config)
         init_pluralkit()
         if self.on_save_callback:
@@ -789,7 +786,7 @@ class MindFlowApp(tk.Tk):
         """Appelé après la sauvegarde des paramètres : relance les services."""
         self.after(0, self._refresh_fronteurs)
         # Appliquer le fond courant si changé
-        current_name = config.get("current_bg", "")
+        current_name = config.get("last_bg", "")
         bgs = {b["name"]: b["url"] for b in config.get("backgrounds", [])}
         url = bgs.get(current_name, "")
         if url:
@@ -801,8 +798,8 @@ class MindFlowApp(tk.Tk):
 # Lancement
 if __name__ == "__main__":
     # Récupère l'URL du fond courant depuis la config
-    _bgs     = {b["name"]: b["url"] for b in config.get("backgrounds", DEFAULT_BACKGROUNDS)}
-    _current = config.get("current_bg", DEFAULT_CONFIG["current_bg"])
-    bg_url   = _bgs.get(_current, DEFAULT_BACKGROUNDS[0]["url"])
+    _bgs    = {b["name"]: b["url"] for b in config.get("backgrounds", DEFAULT_BACKGROUNDS)}
+    _last   = config.get("last_bg", "")  # vide au premier lancement
+    bg_url  = _bgs.get(_last) or DEFAULT_BACKGROUNDS[0]["url"]
     app = MindFlowApp(bg_url)
     app.mainloop()
