@@ -34,10 +34,20 @@ WIDTH  = 1920
 HEIGHT = 1080
 
 # Configuration
+DEFAULT_BACKGROUNDS = [
+    {"name": "🍂🌈", "url": "https://i.postimg.cc/NfKBTr1Y/Yukkel-Gui-Pride-Month.png"},
+    {"name": "🍂🌃", "url": "https://i.postimg.cc/MH83GNbz/Yukkel-Gui-Night.png"},
+    {"name": "🐸", "url": "https://i.postimg.cc/qRGDzQmx/Chilling-Frog.png"},
+    {"name": "🦊💫", "url": "https://i.postimg.cc/KjZVNCK0/Fox-In-The-Stars2.png"}
+]
+
 DEFAULT_CONFIG = {
-    "pk_token":              "",
-    "fronters_refresh_ms":   60000,
-    "note_colors":           ["#ffff88", "#aaffaa", "#aaddff", "#ffccaa", "#ffaacc"],
+    "pk_token": "",
+    "fronters_refresh_ms": 60000,
+    "note_colors": ["#ffff88", "#aaffaa", "#aaddff", "#ffccaa", "#ffaacc"],
+    "backgrounds": DEFAULT_BACKGROUNDS,
+    "default_bg": "🍂🌈",
+    "current_bg": "🍂🌈",
 }
 
 
@@ -137,25 +147,39 @@ class SettingsWindow(Toplevel):
         pad = {"padx": 12, "pady": 5}
 
         # PluralKit
-        s2 = tk.LabelFrame(self, text="🌸 PluralKit", font=("Helvetica", 11, "bold"), padx=8, pady=6)
-        s2.pack(fill="x", padx=12, pady=4)
-        tk.Label(s2, text="Token :").grid(row=0, column=0, sticky="w")
+        set_pk = tk.LabelFrame(self, text="🤖 PluralKit", font=("Helvetica", 11, "bold"), padx=8, pady=6)
+        set_pk.pack(fill="x", padx=12, pady=4)
+        tk.Label(set_pk, text="Token :").grid(row=0, column=0, sticky="w")
         self.pk_token_var = tk.StringVar(value=config.get("pk_token", ""))
-        tk.Entry(s2, textvariable=self.pk_token_var, width=42, show="*").grid(row=0, column=1, **pad)
-        tk.Label(s2, text="Refresh (ms) :").grid(row=1, column=0, sticky="w")
+        tk.Entry(set_pk, textvariable=self.pk_token_var, width=42, show="*").grid(row=0, column=1, **pad)
+        tk.Label(set_pk, text="Refresh (ms) :").grid(row=1, column=0, sticky="w")
         self.fronters_refresh_var = tk.IntVar(value=config.get("fronters_refresh_ms", 60000))
-        tk.Spinbox(s2, from_=5000, to=300000, increment=5000,
+        tk.Spinbox(set_pk, from_=5000, to=300000, increment=5000,
                    textvariable=self.fronters_refresh_var, width=10).grid(row=1, column=1, sticky="w", **pad)
 
         # Couleurs post-its
-        s3 = tk.LabelFrame(self, text="🗒️ Couleurs préférées des post-its",
+        set_couleurs = tk.LabelFrame(self, text="🗒️ Couleurs préférées des post-its",
                            font=("Helvetica", 11, "bold"), padx=8, pady=6)
-        s3.pack(fill="x", padx=12, pady=4)
-        self.colors_frame = tk.Frame(s3)
+        set_couleurs.pack(fill="x", padx=12, pady=4)
+        self.colors_frame = tk.Frame(set_couleurs)
         self.colors_frame.pack(fill="x")
         self.color_vars = list(config.get("note_colors", DEFAULT_CONFIG["note_colors"]))
         self._refresh_color_list()
-        tk.Button(s3, text="+ Ajouter une couleur", command=self._add_color).pack(pady=4)
+        tk.Button(set_couleurs, text="+ Ajouter une couleur", command=self._add_color).pack(pady=4)
+
+        # Fonds d'écran
+        set_fonds = tk.LabelFrame(self, text="🖼️ Fonds d'écran",
+                           font=("Helvetica", 11, "bold"), padx=8, pady=6)
+        set_fonds.pack(fill="x", padx=12, pady=4)
+
+        self.bg_vars = [dict(b) for b in config.get("backgrounds", DEFAULT_BACKGROUNDS)]
+        self._default_bg_var  = tk.StringVar(value=config.get("default_bg", ""))
+        self._current_bg_var  = tk.StringVar(value=config.get("current_bg", ""))
+
+        self.bg_list_frame = tk.Frame(set_fonds)
+        self.bg_list_frame.pack(fill="x")
+        self._refresh_bg_list()
+        tk.Button(set_fonds, text="+ Ajouter un fond", command=self._add_bg).pack(pady=4)
 
         tk.Button(self, text="💾  Sauvegarder", font=("Helvetica", 11, "bold"),
                   bg="#4CAF50", fg="white", command=self._save).pack(pady=16)
@@ -190,10 +214,73 @@ class SettingsWindow(Toplevel):
             self.color_vars.pop(idx)
             self._refresh_color_list()
 
+    def _refresh_bg_list(self):
+        for w in self.bg_list_frame.winfo_children():
+            w.destroy()
+        tk.Label(self.bg_list_frame, text="Nom", width=12, anchor="w").grid(row=0, column=0, padx=4)
+        tk.Label(self.bg_list_frame, text="URL", width=30, anchor="w").grid(row=0, column=1, padx=4)
+        tk.Label(self.bg_list_frame, text="Défaut").grid(row=0, column=2, padx=2)
+        tk.Label(self.bg_list_frame, text="Actuel").grid(row=0, column=3, padx=2)
+        for i, bg in enumerate(self.bg_vars):
+            tk.Label(self.bg_list_frame, text=bg["name"], width=12, anchor="w").grid(row=i+1, column=0, padx=4)
+            tk.Label(self.bg_list_frame, text=bg["url"][:35] + "…" if len(bg["url"]) > 35 else bg["url"],
+                     width=30, anchor="w").grid(row=i+1, column=1, padx=4)
+            tk.Radiobutton(self.bg_list_frame, variable=self._default_bg_var,
+                           value=bg["name"]).grid(row=i+1, column=2)
+            tk.Radiobutton(self.bg_list_frame, variable=self._current_bg_var,
+                           value=bg["name"]).grid(row=i+1, column=3)
+            tk.Button(self.bg_list_frame, text="✏️", width=3,
+                      command=lambda idx=i: self._edit_bg(idx)).grid(row=i+1, column=4, padx=2)
+            tk.Button(self.bg_list_frame, text="🗑️", width=3,
+                      command=lambda idx=i: self._delete_bg(idx)).grid(row=i+1, column=5, padx=2)
+
+    def _add_bg(self):
+        win = tk.Toplevel(self)
+        win.title("Nouveau fond d'écran")
+        win.geometry("420x120")
+        tk.Label(win, text="Nom :").grid(row=0, column=0, padx=8, pady=6, sticky="w")
+        name_var = tk.StringVar()
+        tk.Entry(win, textvariable=name_var, width=36).grid(row=0, column=1, padx=8)
+        tk.Label(win, text="URL :").grid(row=1, column=0, padx=8, sticky="w")
+        url_var = tk.StringVar()
+        tk.Entry(win, textvariable=url_var, width=36).grid(row=1, column=1, padx=8)
+        def _confirm():
+            name, url = name_var.get().strip(), url_var.get().strip()
+            if name and url:
+                self.bg_vars.append({"name": name, "url": url})
+                self._refresh_bg_list()
+                win.destroy()
+        tk.Button(win, text="Ajouter", command=_confirm).grid(row=2, column=1, pady=8, sticky="e")
+
+    def _edit_bg(self, idx):
+        bg = self.bg_vars[idx]
+        win = tk.Toplevel(self)
+        win.title("Modifier le fond")
+        win.geometry("420x120")
+        tk.Label(win, text="Nom :").grid(row=0, column=0, padx=8, pady=6, sticky="w")
+        name_var = tk.StringVar(value=bg["name"])
+        tk.Entry(win, textvariable=name_var, width=36).grid(row=0, column=1, padx=8)
+        tk.Label(win, text="URL :").grid(row=1, column=0, padx=8, sticky="w")
+        url_var = tk.StringVar(value=bg["url"])
+        tk.Entry(win, textvariable=url_var, width=36).grid(row=1, column=1, padx=8)
+        def _confirm():
+            self.bg_vars[idx] = {"name": name_var.get().strip(), "url": url_var.get().strip()}
+            self._refresh_bg_list()
+            win.destroy()
+        tk.Button(win, text="Enregistrer", command=_confirm).grid(row=2, column=1, pady=8, sticky="e")
+
+    def _delete_bg(self, idx):
+        if len(self.bg_vars) > 1:
+            self.bg_vars.pop(idx)
+            self._refresh_bg_list()
+
     def _save(self):
-        config["pk_token"]              = self.pk_token_var.get().strip()
-        config["fronters_refresh_ms"]   = self.fronters_refresh_var.get()
-        config["note_colors"]           = self.color_vars
+        config["pk_token"] = self.pk_token_var.get().strip()
+        config["fronters_refresh_ms"] = self.fronters_refresh_var.get()
+        config["note_colors"] = self.color_vars
+        config["backgrounds"] = self.bg_vars
+        config["default_bg"] = self._default_bg_var.get()
+        config["current_bg"] = self._current_bg_var.get()
         save_config(config)
         init_pluralkit()
         if self.on_save_callback:
@@ -235,8 +322,8 @@ class Whiteboard(tk.Toplevel):
 
     def markdown_to_html(self, text: str) -> str:
         try:
-            output       = []
-            in_list      = False
+            output = []
+            in_list = False
             pending_blank = 0
 
             for raw_line in text.split("\n"):
@@ -447,18 +534,6 @@ class Whiteboard(tk.Toplevel):
 
 # Application principale
 class MindFlowApp(tk.Tk):
-
-    emoji_backgrounds = {
-        "🍂":    "https://i.pinimg.com/736x/f3/da/5e/f3da5e2f6a1ebcbfadc5aedfa548971a.jpg",
-        "🫐":    "https://i.pinimg.com/736x/30/c6/c0/30c6c0bdea4dcaa079e38eff6977ab91.jpg",
-        "🦕":    "https://i.pinimg.com/736x/cd/65/99/cd65996537d75ae128b39d0e76645bea.jpg",
-        "Wisteria": "https://i.pinimg.com/736x/c8/91/a3/c891a318ccdd42267a47f8bf0aac04b3.jpg",
-        "🍂🌈": "https://i.postimg.cc/NfKBTr1Y/Yukkel-Gui-Pride-Month.png",
-        "🍂🌃": "https://i.postimg.cc/MH83GNbz/Yukkel-Gui-Night.png",
-        "🐸":    "https://i.postimg.cc/qRGDzQmx/Chilling-Frog.png",
-        "🦊💫": "https://i.postimg.cc/KjZVNCK0/Fox-In-The-Stars2.png",
-    }
-
     def __init__(self, bg_url: str):
         super().__init__()
         self.title("MindFlow")
@@ -530,19 +605,9 @@ class MindFlowApp(tk.Tk):
                                   command=self.open_settings)
         self.canvas.create_window(20, 20, window=settings_btn, anchor="nw")
 
-        # Bouton changer le fond (à droite du bouton paramètres)
-        self.bouton_changer_fond = tk.Menubutton(self, text="🍂", font=("Arial", 14),
-                                                  relief="raised", bg="black", fg="white",
-                                                  width=BTN_W, height=BTN_H)
-        menu_fond = tk.Menu(self.bouton_changer_fond, tearoff=0)
-        self.bouton_changer_fond.config(menu=menu_fond)
-        for emoji in self.emoji_backgrounds:
-            menu_fond.add_command(label=emoji, command=lambda e=emoji: self.change_background(e))
-        self.canvas.create_window(80, 20, window=self.bouton_changer_fond, anchor="nw")
-
-        # Fronteurs PluralKit  (à droite du bouton fond)
+        # Fronteurs PluralKit  (à droite du bouton settings)
         self.fronters_label = self.canvas.create_text(
-            150, 33, text="", font=("Helvetica", 12), fill="white", anchor="w")
+            80, 33, text="", font=("Helvetica", 12), fill="white", anchor="w")
         self.after(200, self._refresh_fronteurs)
 
         # Bouton tableau blanc (coin haut droit)
@@ -575,15 +640,15 @@ class MindFlowApp(tk.Tk):
         self.bg_image = img
         self.canvas.itemconfig(self.bg_image_id, image=self.bg_image)
 
-    def change_background(self, emoji: str):
-        url = self.emoji_backgrounds.get(emoji)
+    def change_background(self, url: str):
+        """Charge et applique un fond d'écran depuis une URL."""
         if not url:
             return
-        self.bouton_changer_fond.configure(text=emoji)
-        threading.Thread(
-            target=lambda: self.after(0, lambda i=get_cached_image(url, (WIDTH, HEIGHT)): self._apply_bg(i) if i else None),
-            daemon=True,
-        ).start()
+        def _fetch():
+            img = get_cached_image(url, (WIDTH, HEIGHT))
+            if img:
+                self.after(0, lambda i=img: self._apply_bg(i))
+        threading.Thread(target=_fetch, daemon=True).start()
 
     # Horloge
     def update_clock(self):
@@ -723,16 +788,21 @@ class MindFlowApp(tk.Tk):
     def _on_settings_saved(self):
         """Appelé après la sauvegarde des paramètres : relance les services."""
         self.after(0, self._refresh_fronteurs)
+        # Appliquer le fond courant si changé
+        current_name = config.get("current_bg", "")
+        bgs = {b["name"]: b["url"] for b in config.get("backgrounds", [])}
+        url = bgs.get(current_name, "")
+        if url:
+            self.change_background(url)
 
     def open_whiteboard(self):
         Whiteboard(self)
 
 # Lancement
 if __name__ == "__main__":
-    emoji_par_defaut = "🍂🌈"
-    bg_url = MindFlowApp.emoji_backgrounds.get(
-        emoji_par_defaut,
-        "https://i.pinimg.com/736x/f3/da/5e/f3da5e2f6a1ebcbfadc5aedfa548971a.jpg",
-    )
+    # Récupère l'URL du fond courant depuis la config
+    _bgs     = {b["name"]: b["url"] for b in config.get("backgrounds", DEFAULT_BACKGROUNDS)}
+    _current = config.get("current_bg", DEFAULT_CONFIG["current_bg"])
+    bg_url   = _bgs.get(_current, DEFAULT_BACKGROUNDS[0]["url"])
     app = MindFlowApp(bg_url)
     app.mainloop()
