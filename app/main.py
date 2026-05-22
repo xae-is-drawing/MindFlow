@@ -301,7 +301,33 @@ class Whiteboard(tk.Toplevel):
 
         self.canvas.bind("<Double-1>", self.add_note)
         self.protocol("WM_DELETE_WINDOW", lambda: [self.save_notes(), self.destroy()])
+
+        # Texte de fond quand aucun post-it
+        self._placeholder_id = self.canvas.create_text(
+            0, 0,
+            text="Double-cliquez pour ajouter un post-it.",
+            fill="#4a90d9",
+            font=("Arial", 20, "italic"),
+            state="hidden",
+        )
+        self.canvas.bind("<Configure>", self._reposition_placeholder)
+
         self.load_notes()
+        self._update_placeholder()
+
+    # Placeholder
+    def _update_placeholder(self):
+        if self.notes:
+            self.canvas.itemconfig(self._placeholder_id, state="hidden")
+        else:
+            self._reposition_placeholder()
+            self.canvas.itemconfig(self._placeholder_id, state="normal")
+
+    def _reposition_placeholder(self, event=None):
+        w = self.canvas.winfo_width()
+        h = self.canvas.winfo_height()
+        if w > 1 and h > 1:
+            self.canvas.coords(self._placeholder_id, w // 2, h // 2)
 
     #  Markdown
     def _inline(self, text: str) -> str:
@@ -465,6 +491,7 @@ class Whiteboard(tk.Toplevel):
 
         note = Note(window, frame, html_text, color, resize_handle, move_handle, text)
         self.notes.append(note)
+        self._update_placeholder()
 
         self.canvas.tag_bind(move_handle,   "<B1-Motion>", lambda e, n=note: self.move_note(e, n))
         self.canvas.tag_bind(resize_handle, "<B1-Motion>", lambda e, n=note: self.resize_note(e, n))
@@ -515,6 +542,7 @@ class Whiteboard(tk.Toplevel):
         self.canvas.delete(note.move_handle)
         self.canvas.delete(note.window)
         self.notes.remove(note)
+        self._update_placeholder()
 
     def show_context_menu(self, event, note: Note):
         m = Menu(self, tearoff=0)
