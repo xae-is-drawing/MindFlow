@@ -1,7 +1,7 @@
 import os
 import sys
 import tkinter as tk
-from tkinter import simpledialog, colorchooser, Menu, Toplevel, Button
+from tkinter import simpledialog, colorchooser, Menu, Toplevel, Button, PhotoImage
 from PIL import Image, ImageTk, ImageSequence
 import datetime
 import requests
@@ -564,6 +564,8 @@ class MindFlowApp(tk.Tk):
         self.title("MindFlow")
         self.geometry(f"{WIDTH}x{HEIGHT}")
         self.configure(bg="black")
+        self.iconbitmap("app/assets/icon.ico")
+        self.iconphoto(True, PhotoImage(file="app/assets/icon.png"))
 
         # État timer
         self.timer_running       = False
@@ -826,8 +828,8 @@ class MindFlowApp(tk.Tk):
 # Lancement
 if __name__ == "__main__":
     # Récupère l'URL du fond courant depuis la config
-    _bgs    = {b["name"]: b["url"] for b in config.get("backgrounds", DEFAULT_BACKGROUNDS)}
-    _last   = config.get("last_bg", "")  # vide au premier lancement
-    bg_url  = _bgs.get(_last) or DEFAULT_BACKGROUNDS[0]["url"]
+    _bgs = {b["name"]: b["url"] for b in config.get("backgrounds", DEFAULT_BACKGROUNDS)}
+    _last = config.get("last_bg", "")  # vide au premier lancement
+    bg_url = _bgs.get(_last) or DEFAULT_BACKGROUNDS[0]["url"]
     app = MindFlowApp(bg_url)
     app.mainloop()
