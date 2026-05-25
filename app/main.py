@@ -1,7 +1,7 @@
 import os
 import sys
 import tkinter as tk
-from tkinter import simpledialog, colorchooser, Menu, Toplevel, Button, PhotoImage
+from tkinter import simpledialog, colorchooser, Menu, Toplevel, Button
 from PIL import Image, ImageTk, ImageSequence
 import datetime
 import requests
@@ -564,8 +564,6 @@ class MindFlowApp(tk.Tk):
         self.title("MindFlow")
         self.geometry(f"{WIDTH}x{HEIGHT}")
         self.configure(bg="black")
-        self.iconbitmap("app/assets/icon.ico")
-        self.iconphoto(True, PhotoImage(file="app/assets/icon.png"))
 
         # État timer
         self.timer_running       = False
