@@ -2,7 +2,7 @@ import os
 import sys
 import tkinter as tk
 from tkinter import simpledialog, colorchooser, Menu, Toplevel, Button
-from PIL import Image, ImageTk, ImageSequence
+from PIL import Image, ImageTk, ImageSequence, ImageOps
 import datetime
 import requests
 from io import BytesIO
@@ -20,17 +20,17 @@ if getattr(sys, "frozen", False):
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-ASSETS_DIR  = os.path.join(BASE_DIR, "assets")
-CACHE_DIR   = os.path.join(BASE_DIR, "cache")
-NOTES_DIR   = os.path.join(CACHE_DIR, "notes")
-IMG_CACHE   = os.path.join(CACHE_DIR, "img_cache")
+ASSETS_DIR = os.path.join(BASE_DIR, "assets")
+CACHE_DIR = os.path.join(BASE_DIR, "cache")
+NOTES_DIR = os.path.join(CACHE_DIR, "notes")
+IMG_CACHE = os.path.join(CACHE_DIR, "img_cache")
 CONFIG_PATH = os.path.join(CACHE_DIR, "config.json")
 
 for d in (CACHE_DIR, NOTES_DIR, IMG_CACHE):
     os.makedirs(d, exist_ok=True)
 
 # Dimensions
-WIDTH  = 1920
+WIDTH = 1920
 HEIGHT = 1080
 
 # Configuration
@@ -76,26 +76,26 @@ def _cache_key(url: str) -> str:
 
 
 def get_cached_image(url: str, size: tuple) -> ImageTk.PhotoImage | None:
-    """Retourne l'image depuis le cache disque, ou la télécharge et la met en cache."""
+    # Retourne l'image depuis le cache disque, ou la télécharge et la met en cache
     key  = _cache_key(url)
     path = os.path.join(IMG_CACHE, f"{key}_{size[0]}x{size[1]}.png")
     try:
         if os.path.exists(path):
-            img = Image.open(path)
+            img = ImageOps.fit(Image.open(path), size, Image.Resampling.LANCZOS)
         else:
             r = requests.get(url, timeout=10)
             r.raise_for_status()
-            img = Image.open(BytesIO(r.content)).resize(size, Image.Resampling.LANCZOS)
+            img = ImageOps.fit(Image.open(BytesIO(r.content)), size, Image.Resampling.LANCZOS)
             img.save(path, "PNG")
         return ImageTk.PhotoImage(img)
     except Exception as e:
         print(f"[ERREUR] Image {url} : {e}")
         return None
 
-# Clients PluralKit
+# Client PluralKit
 
 def get_pluralkit_fronters() -> str:
-    """Appelle l'API PluralKit v2 directement — fiable et sans dépendance async."""
+    # Appelle l'API PluralKit v2 directement — fiable et sans dépendance async
     token = config.get("pk_token", "").strip()
     if not token:
         return ""
@@ -123,13 +123,13 @@ init_pluralkit()
 # Dataclass Note
 @dataclass
 class Note:
-    window:        int
-    frame:         object
-    html_label:    object
-    color:         str
+    window: int
+    frame: object
+    html_label: object
+    color: str
     resize_handle: int
-    move_handle:   int
-    text:          str
+    move_handle: int
+    text: str
 
 
 # Fenêtre Paramètres
@@ -336,10 +336,10 @@ class Whiteboard(tk.Toplevel):
         text = text.replace("[x]", "&#x2611;")
         text = text.replace("[X]", "&#x2611;")
         text = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", text)
-        text = re.sub(r"__(.*?)__",     r"<u>\1</u>", text)
-        text = re.sub(r"~~(.*?)~~",     r'<span style="text-decoration:line-through">\1</span>', text)
-        text = re.sub(r"\*(.*?)\*",     r"<i>\1</i>", text)
-        text = re.sub(r"`(.*?)`",       r"<code>\1</code>", text)
+        text = re.sub(r"__(.*?)__", r"<u>\1</u>", text)
+        text = re.sub(r"~~(.*?)~~", r'<span style="text-decoration:line-through">\1</span>', text)
+        text = re.sub(r"\*(.*?)\*", r"<i>\1</i>", text)
+        text = re.sub(r"`(.*?)`", r"<code>\1</code>", text)
         text = re.sub(r"!\[.*?\]\((.*?)\)", r'<img src="\1" width="100">', text)
         return text
 
@@ -465,25 +465,25 @@ class Whiteboard(tk.Toplevel):
     def add_note(self, event, preset_data=None):
         default_color = self.recent_colors[-1] if self.recent_colors else "#ffff88"
         if preset_data:
-            x, y   = preset_data["x"], preset_data["y"]
-            text   = preset_data["text"]
-            color  = preset_data.get("color", default_color)
-            w, h   = preset_data["w"], preset_data["h"]
+            x, y = preset_data["x"], preset_data["y"]
+            text = preset_data["text"]
+            color = preset_data.get("color", default_color)
+            w, h = preset_data["w"], preset_data["h"]
         else:
             x, y = event.x, event.y
             text = simpledialog.askstring("Post-it", "Contenu de la note :", parent=self)
             if text is None:
                 return
             color = self.choose_color_with_history() or default_color
-            w, h  = 200, 150
+            w, h = 200, 150
 
-        frame     = tk.Frame(self.canvas, width=w, height=h, bg=color)
+        frame = tk.Frame(self.canvas, width=w, height=h, bg=color)
         frame.pack_propagate(False)
         html_text = HTMLLabel(frame, background=color, html=self.markdown_to_html(text))
         html_text.pack(fill="both", expand=True)
 
-        window        = self.canvas.create_window(x, y, window=frame, anchor="nw")
-        move_handle   = self.canvas.create_rectangle(x-5, y-5, x+20, y+20, fill="black", tags="move")
+        window = self.canvas.create_window(x, y, window=frame, anchor="nw")
+        move_handle = self.canvas.create_rectangle(x-5, y-5, x+20, y+20, fill="black", tags="move")
         resize_handle = self.canvas.create_rectangle(x+w-15, y+h-15, x+w+5, y+h+5, fill="black", tags="resize")
 
         self.canvas.tag_bind("move", "<Enter>", lambda e: self.canvas.config(cursor="fleur"))
@@ -493,9 +493,9 @@ class Whiteboard(tk.Toplevel):
         self.notes.append(note)
         self._update_placeholder()
 
-        self.canvas.tag_bind(move_handle,   "<B1-Motion>", lambda e, n=note: self.move_note(e, n))
+        self.canvas.tag_bind(move_handle, "<B1-Motion>", lambda e, n=note: self.move_note(e, n))
         self.canvas.tag_bind(resize_handle, "<B1-Motion>", lambda e, n=note: self.resize_note(e, n))
-        html_text.bind("<Button-3>",       lambda e, n=note: self.show_context_menu(e, n))
+        html_text.bind("<Button-3>", lambda e, n=note: self.show_context_menu(e, n))
         html_text.bind("<Double-Button-1>", lambda e, n=note: self.edit_note(n))
 
     def edit_note(self, note: Note):
@@ -525,7 +525,7 @@ class Whiteboard(tk.Toplevel):
             x1, y1, x2, y2 = bbox
             w, h = x2-x1, y2-y1
             self.canvas.coords(note.resize_handle, x+w-15, y+h-15, x+w+5, y+h+5)
-            self.canvas.coords(note.move_handle,   x-5,    y-5,    x+20,  y+20)
+            self.canvas.coords(note.move_handle, x-5, y-5, x+20, y+20)
 
     def resize_note(self, event, note: Note):
         x1, y1 = self.canvas.coords(note.window)
@@ -534,7 +534,7 @@ class Whiteboard(tk.Toplevel):
         note.frame.config(width=nw, height=nh)
         self.canvas.itemconfig(note.window, width=nw, height=nh)
         self.canvas.coords(note.resize_handle, x1+nw-15, y1+nh-15, x1+nw+5, y1+nh+5)
-        self.canvas.coords(note.move_handle,   x1-5,     y1-5,     x1+20,   y1+20)
+        self.canvas.coords(note.move_handle, x1-5, y1-5, x1+20, y1+20)
 
     def delete_note(self, note: Note):
         note.frame.destroy()
@@ -547,7 +547,7 @@ class Whiteboard(tk.Toplevel):
     def show_context_menu(self, event, note: Note):
         m = Menu(self, tearoff=0)
         m.add_command(label="Changer la couleur", command=lambda: self.change_note_color(note))
-        m.add_command(label="Supprimer",          command=lambda: self.delete_note(note))
+        m.add_command(label="Supprimer", command=lambda: self.delete_note(note))
         m.post(event.x_root, event.y_root)
 
     def change_note_color(self, note: Note):
@@ -566,14 +566,14 @@ class MindFlowApp(tk.Tk):
         self.configure(bg="black")
 
         # État timer
-        self.timer_running       = False
-        self.timer_paused        = False
-        self.afficher_idle       = True
-        self.total_seconds       = 30 * 60
+        self.timer_running = False
+        self.timer_paused = False
+        self.afficher_idle = True
+        self.total_seconds = 30 * 60
         self.total_initial_seconds = 30 * 60
-        self.arbre_stage         = 0
-        self.idle_gif_frames     = []
-        self.current_frame       = 0
+        self.arbre_stage = 0
+        self.idle_gif_frames = []
+        self.current_frame = 0
 
         # GIF actif/pausé selon visibilité fenêtre
         self._window_visible = True
@@ -654,9 +654,17 @@ class MindFlowApp(tk.Tk):
         self._animate_idle_gif()
 
     # Fond
+    def _get_canvas_size(self) -> tuple:
+        # Retourne la taille réelle du canvas, avec fallback sur WIDTH/HEIGHT
+        self.update_idletasks()
+        w = self.canvas.winfo_width()
+        h = self.canvas.winfo_height()
+        return (w if w > 1 else WIDTH, h if h > 1 else HEIGHT)
+
     def _load_bg_async(self, url: str):
-        """Télécharge/cache l'image de fond dans un thread, puis met à jour le canvas."""
-        img = get_cached_image(url, (WIDTH, HEIGHT))
+        # Télécharge/cache l'image de fond dans un thread, puis met à jour le canvas
+        size = self._get_canvas_size()
+        img = get_cached_image(url, size)
         if img:
             # Les mises à jour tkinter DOIVENT se faire dans le thread principal
             self.after(0, lambda i=img: self._apply_bg(i))
@@ -664,13 +672,15 @@ class MindFlowApp(tk.Tk):
     def _apply_bg(self, img: ImageTk.PhotoImage):
         self.bg_image = img
         self.canvas.itemconfig(self.bg_image_id, image=self.bg_image)
+        self.canvas.update_idletasks()
 
     def change_background(self, url: str):
-        """Charge et applique un fond d'écran depuis une URL."""
+        # Charge et applique un fond d'écran depuis une URL
         if not url:
             return
         def _fetch():
-            img = get_cached_image(url, (WIDTH, HEIGHT))
+            size = self._get_canvas_size()
+            img = get_cached_image(url, size)
             if img:
                 self.after(0, lambda i=img: self._apply_bg(i))
         threading.Thread(target=_fetch, daemon=True).start()
@@ -684,7 +694,7 @@ class MindFlowApp(tk.Tk):
 
     # Fronteurs
     def _refresh_fronteurs(self):
-        """Lance la récupération PluralKit dans un thread."""
+        # Lance la récupération PluralKit dans un thread
         threading.Thread(target=self._fetch_fronteurs, daemon=True).start()
 
     def _fetch_fronteurs(self):
@@ -712,9 +722,9 @@ class MindFlowApp(tk.Tk):
         if not self.arbre_images:
             print("[ERREUR] Images d'arbre manquantes.")
             return
-        self.timer_running         = True
-        self.timer_paused          = False
-        self.afficher_idle         = False
+        self.timer_running = True
+        self.timer_paused = False
+        self.afficher_idle = False
         self.total_initial_seconds = self.total_seconds
         self.canvas.itemconfigure(self.arbre_image_id, image=self.arbre_images[0])
         self.canvas.delete(self.start_button_id)
@@ -735,17 +745,17 @@ class MindFlowApp(tk.Tk):
             self.pause_button.config(text="Continuer")
 
     def reset_timer(self):
-        self.timer_running         = False
-        self.timer_paused          = False
-        self.afficher_idle         = True
-        self.total_seconds         = 30 * 60
+        self.timer_running = False
+        self.timer_paused = False
+        self.afficher_idle = True
+        self.total_seconds = 30 * 60
         self.total_initial_seconds = 30 * 60
-        self.arbre_stage           = 0
+        self.arbre_stage = 0
         self.canvas.itemconfigure(self.timer_text, text=self.format_time(self.total_seconds))
         self.canvas.delete(self.pause_button_id)
         self.canvas.delete(self.reset_button_id)
-        self.start_button_id = self.canvas.create_window(self.TIMER_CX,    600, window=self.start_button)
-        self.plus_button_id  = self.canvas.create_window(self.TIMER_CX+50, 500, window=self.plus_button)
+        self.start_button_id = self.canvas.create_window(self.TIMER_CX, 600, window=self.start_button)
+        self.plus_button_id = self.canvas.create_window(self.TIMER_CX+50, 500, window=self.plus_button)
         self.minus_button_id = self.canvas.create_window(self.TIMER_CX-50, 500, window=self.minus_button)
         if self.arbre_images:
             self.canvas.itemconfigure(self.arbre_image_id, image=self.arbre_images[0])
@@ -768,7 +778,7 @@ class MindFlowApp(tk.Tk):
             self.after(1000, self.update_timer)
         else:
             self.timer_running = False
-            self.timer_paused  = False
+            self.timer_paused = False
             for attr in ("pause_button_id", "reset_button_id"):
                 if hasattr(self, attr):
                     self.canvas.delete(getattr(self, attr))
